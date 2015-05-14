@@ -3,11 +3,9 @@
 byte MOTOR_PINS[] = {11,10,9,6};
 byte DIRECTION_PINS[] = {2,4};
 
-const Packet Packet::nullPacket = Packet();   // TODO - not needed?
 int led = 13;
 
 CMotorController* g_controller = NULL;
-//SoftwareSerial BtSerial(8, 7); // RX | TX
 
 void skipEndlChars()
 {
@@ -42,18 +40,18 @@ void setup()
 // the loop routine runs over and over again forever:
 void loop() 
 {
-  static Packet lastPacket;
-  const  int    maxLoopsWithoutPacket = 2; 
-  const  int    loopDelay             = 30;
+  const  int    loopDelay             = 20;
+  const  int    maxPacketLeaseTime    = 500;  // time before last move command will be forcibly discarded
+  const  int    maxLoopsWithoutPacket = maxPacketLeaseTime / loopDelay;
   static int    loopsWithoutPacket    = maxLoopsWithoutPacket;
  
+  // Waiting 7 packet bytes: (fr,fl,rr,rl), directions (r,l) and checksum.
   skipEndlChars();
-  Serial.println(F("enter packet bytes (fr,fl,rr,rl), directions (r,l) and checksum. 7 chars total: "));  
-  Serial1.println(F("enter packet bytes (fr,fl,rr,rl), directions (r,l) and checksum. 7 chars total: "));  
 
-  if (Packet::read(Serial, lastPacket) || Packet::read(Serial1, lastPacket))
+  Packet packet;
+  if (Packet::read(Serial, packet) || Packet::read(Serial1, packet))
   {
-      g_controller->apply(lastPacket);
+      g_controller->apply(packet);
       loopsWithoutPacket = 0;
       
       digitalWrite(led, HIGH);
@@ -62,7 +60,6 @@ void loop()
   {
       if (++loopsWithoutPacket > maxLoopsWithoutPacket)
       {
-          lastPacket = Packet::nullPacket;
           loopsWithoutPacket = maxLoopsWithoutPacket; // avoid overflow
           g_controller->stopAll();
           

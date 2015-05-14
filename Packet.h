@@ -15,7 +15,6 @@ struct Packet
   
   Packet() : m_frontRight(0), m_frontLeft(0), m_rearRight(0), m_rearLeft(0), m_rightDirection(0), m_leftDirection(0), m_checkSum(0)       {}
 
-  static const Packet nullPacket;  
   static bool isValidChar(char c)         { return c >= '0' && c <= '9'; }
   bool isValid() const                    { return isValidChar(m_frontRight) && isValidChar(m_frontLeft) && isValidChar(m_rearRight) && isValidChar(m_rearLeft) 
                                                 && isValidChar(m_rightDirection) && isValidChar(m_leftDirection); }
@@ -23,15 +22,17 @@ struct Packet
   static bool isAvailable(Stream& stream) { return stream.available() >= sizeof(Packet); }
   static bool read(Stream& stream, Packet& p) // read packet from stream, if available. return true if read succesfully
   {
-     stream.print(stream.available()); stream.print(F(" bytes available; ")); stream.print(sizeof(Packet)); stream.println(F(" bytes needed")); 
      if (!isAvailable(stream))
+     {
+         stream.print(stream.available()); stream.print(F(" bytes available; ")); stream.print(sizeof(Packet)); stream.println(F(" bytes needed")); 
          return false;
+     }
      
      char* buffer = (char*)&p;
      for(int i=0; i<sizeof(p); ++i)
          buffer[i] = stream.read();
       
-     stream.println(F("Command read successfully"));
+     stream.println(F("OK"));
      return true;
   } 
 };

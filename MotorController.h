@@ -15,27 +15,14 @@ public:
     , m_directionPins(directionPins)
   {
     stopAll();
-    resetDirections();
   }
   
   void stopAll()
   {
-    for(const byte* pPin = &m_motorPins[0]; pPin < &m_motorPins[countof(m_motorPins)]; ++pPin)
-    {
-      pinMode(*pPin, OUTPUT);
-      digitalWrite(*pPin, LOW);
-    }
+    setAllPins(m_motorPins,     LOW);
+    setAllPins(m_directionPins, LOW);
   }
-  
-  void resetDirections()
-  {
-    for(const byte* pPin = &m_directionPins[0]; pPin < &m_directionPins[countof(m_directionPins)]; ++pPin)
-    {
-      pinMode(*pPin, OUTPUT);
-      digitalWrite(*pPin, LOW);
-    }
-  }
-  
+
   void apply(const Packet& p)
   {
     if(!p.isValid())
