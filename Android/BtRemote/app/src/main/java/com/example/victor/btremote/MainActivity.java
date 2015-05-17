@@ -38,11 +38,15 @@ public class MainActivity extends Activity
         @Override
         public void onProgressChanged(SeekBar seekBar, int progress, boolean isFromUser)
         {
-            int neutralPosition = seekBar.getMax() / 2;
+            MotorSeekBar motorSeekBar = (MotorSeekBar)seekBar;
+
+            int     neutralPosition = motorSeekBar.getNeutralPos();
             boolean isReverse = progress < neutralPosition;
             int     power = progress > neutralPosition
                             ? /* towards */ progress - neutralPosition
                             : /* backwards */ neutralPosition - progress;
+
+            startCommunication();
 
             mBtConnection.setMotorState(mWhich, power, isReverse);
         }
@@ -59,6 +63,8 @@ public class MainActivity extends Activity
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         mLeftMotorControl = (MotorSeekBar) findViewById(R.id.seekBarLeft);
         mRightMotorControl = (MotorSeekBar) findViewById(R.id.seekBarRight);
+
+        startCommunication();
     }
 
     @Override
@@ -70,6 +76,9 @@ public class MainActivity extends Activity
 
     private void startCommunication()
     {
+        if(mService != null && mService.isWorking())
+            return;  // already done
+
         try
         {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -87,7 +96,7 @@ public class MainActivity extends Activity
                         case Constants.MESSAGE_READ:
                             byte[] readBuf = (byte[]) msg.obj;
                             String strIncom = new String(readBuf, 0, msg.arg1);
-                            Log.d(LOG_TAG, "< Read: " + strIncom);
+                            Log.d(LOG_TAG, "< Read: \n" + strIncom);
                             break;
                     }
                 };

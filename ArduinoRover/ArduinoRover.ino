@@ -1,19 +1,21 @@
 #include "MotorController.h"
 
 byte MOTOR_PINS[] = {11,10,9,6};
-byte DIRECTION_PINS[] = {2,4};
+byte DIRECTION_PINS[] = {4,2};
 
 int led = 13;
 
 CMotorController* g_controller = NULL;
 
-void skipEndlChars()
+void skipGarbage(Stream& stream)
 {
-    char c = Serial.peek();
-    while(c == '\n' && c == '\r')
+    char c = stream.peek();
+    while(stream.available() && c != Packet::START_SIGNATURE)
     {
-      Serial.read();
-      c = Serial.peek();
+      Serial.print("Skipping: "); Serial.println(c);
+      
+      stream.read();
+      c = stream.peek();
     }
 }
 
@@ -40,13 +42,14 @@ void setup()
 // the loop routine runs over and over again forever:
 void loop() 
 {
-  const  int    loopDelay             = 20;
+  const  int    loopDelay             = 1;
   const  int    maxPacketLeaseTime    = 500;  // time before last move command will be forcibly discarded
   const  int    maxLoopsWithoutPacket = maxPacketLeaseTime / loopDelay;
   static int    loopsWithoutPacket    = maxLoopsWithoutPacket;
  
-  // Waiting 7 packet bytes: (fr,fl,rr,rl), directions (r,l) and checksum.
-  skipEndlChars();
+  // Waiting 8 packet bytes: 'S' (fr,fl,rr,rl), directions (r,l) and checksum 'E'.
+  skipGarbage(Serial);
+  skipGarbage(Serial1);
 
   Packet packet;
   if (Packet::read(Serial, packet) || Packet::read(Serial1, packet))

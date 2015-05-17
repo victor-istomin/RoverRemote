@@ -7,18 +7,11 @@ import android.view.MotionEvent;
 
 public class MotorSeekBar extends SeekBar
 {
-    public MotorSeekBar(Context context) {
-        super(context);
-    }
+    public MotorSeekBar(Context context)                                   {super(context);}
+    public MotorSeekBar(Context context, AttributeSet attrs)               {super(context, attrs);}
+    public MotorSeekBar(Context context, AttributeSet attrs, int defStyle) {super(context, attrs, defStyle);}
 
-    public MotorSeekBar(Context context, AttributeSet attrs, int defStyle)
-    {
-        super(context, attrs, defStyle);
-    }
-
-    public MotorSeekBar(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
+    public int getNeutralPos()                                             {return getMax()/2;}
 
     protected void onSizeChanged(int w, int h, int oldw, int oldh)
     {
@@ -56,7 +49,7 @@ public class MotorSeekBar extends SeekBar
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 // Just safety - when user release control - motor should stop.
-                setProgress(getMax()/2);
+                setProgress(getNeutralPos());
                 onSizeChanged(getWidth(), getHeight(), 0, 0);
                 break;
         }

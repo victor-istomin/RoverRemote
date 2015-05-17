@@ -12,6 +12,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 /**
@@ -19,15 +21,17 @@ import java.util.UUID;
  */
 public class BtConnectionService
 {
-    private static final String NAME_SECURE = "BtRemoteControl";
-    private static final UUID   BT_SERIAL_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    private static final String LOG_TAG     = "BtRemoteLogs";
-    private static final String ROVER_MAC   = "98:D3:31:80:41:76";
+    private static final String NAME_SECURE     = "BtRemoteControl";
+    private static final UUID   BT_SERIAL_UUID  = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private static final String LOG_TAG         = "BtRemoteLogs";
+    private static final String ROVER_MAC       = "98:D3:31:80:41:76";
+    private static final long   RESEND_INTERVAL = 300;
 
     private final BluetoothAdapter mAdapter;
     private final Handler          mUiHandler;
-    private BluetoothSocket mBtSocket;
+    private BluetoothSocket  mBtSocket;
     private ConnectionThread mConnectionThread;
+    private Timer            mRefreshTimer;
 
     private boolean mIsConnected;
 
@@ -43,6 +47,12 @@ public class BtConnectionService
 
     public enum Motor  { eLeft, eRight };
 
+    public synchronized boolean isWorking()
+    {
+        return null != mAdapter && mAdapter.isEnabled() && null != mBtSocket && mBtSocket.isConnected()
+            && null != mConnectionThread &&  mConnectionThread.isWorking();
+    }
+
     BtConnectionService(Context context, Handler uiHandler) throws Exception
     {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -51,24 +61,41 @@ public class BtConnectionService
 
         Log.d(LOG_TAG, "Bluetooth available");
 
-        mAdapter.cancelDiscovery();
-        Log.d(LOG_TAG, "Discovery canceled");
+        //mAdapter.cancelDiscovery();
+        //Log.d(LOG_TAG, "Discovery canceled");
 
         BluetoothDevice device = mAdapter.getRemoteDevice(ROVER_MAC);
         mBtSocket = device.createRfcommSocketToServiceRecord(BT_SERIAL_UUID);
-        mBtSocket.connect();
+        try
+        {
+            mBtSocket.connect();
+        }
+        catch (Exception e)
+        {
+            mBtSocket.close();
+            throw e;
+        }
 
         Log.d(LOG_TAG, "Connected to: " + device.getName());
 
         mUiHandler = uiHandler;
         mConnectionThread = new ConnectionThread(mBtSocket, mUiHandler);
         mConnectionThread.start();
+
+        // resend last command when no changes made
+        mRefreshTimer = new Timer("RefreshTimer", true);
+        mRefreshTimer.schedule(
+                new TimerTask() {@Override public void run() { BtConnectionService.this.sendState(); }},
+                RESEND_INTERVAL,
+                RESEND_INTERVAL);
     }
 
-    void close()
+    public synchronized void close()
     {
         mLeftMotorPower = mRightMotorPower = 0;
         mLeftReverse = mRightReverse = false;
+        mRefreshTimer.cancel();
+        mRefreshTimer = null;
 
         if(mConnectionThread != null)
         {
@@ -77,7 +104,7 @@ public class BtConnectionService
         }
     }
 
-    public void setMotorState(Motor which, int power, boolean isReverse)
+    public synchronized void setMotorState(Motor which, int power, boolean isReverse)
     {
         switch (which)
         {
@@ -97,28 +124,28 @@ public class BtConnectionService
         }
 
         Log.d(LOG_TAG, String.format("State %s - power: %d, isReverse: %s;", which.toString(), power, String.valueOf(isReverse)));
-        onChangesMade();
+        sendState();
     }
 
-    private void onChangesMade()
+    public synchronized void sendState()
     {
-        byte[] packet = new byte[7];
+        byte[] packet = new byte[8];
 
-        byte rightPower = (byte)('0' + (mLeftMotorPower * 9 / 255));
-        byte leftPower  = (byte)('0' + (mRightMotorPower * 9 / 255));
+        byte rightPower   = (byte)('0' + (mRightMotorPower * 9 / 255));
+        byte leftPower    = (byte)('0' + (mLeftMotorPower  * 9 / 255));
         byte rightReverse = mRightReverse ? (byte)'1' : (byte)'0';
         byte leftReverse  = mLeftReverse  ? (byte)'1' : (byte)'0';
 
-        packet[0] = packet[2] = rightPower; // front right
-        packet[1] = packet[3] = leftPower;  // front left
-        packet[4] = rightReverse;
-        packet[5] = leftReverse;
-        packet[6] = (byte)'0'; // TODO - checksum
+        packet[0] = (byte)'S';
+        packet[1] = packet[3] = rightPower; // front right
+        packet[2] = packet[4] = leftPower;  // front left
+        packet[5] = rightReverse;
+        packet[6] = leftReverse;
+        packet[7] = (byte)'E'; // TODO - checksum
 
         Log.d(LOG_TAG, new String(packet));
 
-        // @todo
-        if(mConnectionThread == null)
+        if(mConnectionThread == null || !mConnectionThread.isWorking())
         {
             Log.d(LOG_TAG, "No connection");
             return;
@@ -202,7 +229,7 @@ public class BtConnectionService
                 }
                 catch(IOException e)
                 {
-                    Log.e(LOG_TAG, "Reader: " + e.getMessage());
+                    Log.e(LOG_TAG, "Reader: \n" + e.getMessage());
                     break;
                 }
             }
