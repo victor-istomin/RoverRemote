@@ -1,6 +1,7 @@
 #pragma once
 #ifndef _UTILS_H_
 #define _UTILS_H_
+#include <Arduino.h>
 
 #define countof(x) (sizeof(x)/sizeof(*x))
 
@@ -20,5 +21,19 @@ struct Tag
 {
     static const Enum value = Value;
 };
+
+template <typename Int, size_t N>
+void dumpArray(Stream& s, Int (&array)[N])
+{
+    s.print('{');
+    for (int i=0; i<N; ++i)
+    {
+      if (i > 0)
+        s.print(',');
+      s.print(array[i], HEX);
+    }
+    s.print('}');
+}
+
 
 #endif // _UTILS_H_

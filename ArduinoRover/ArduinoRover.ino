@@ -1,5 +1,8 @@
 #include "MotorController.h"
 
+#define PERFORM_TESTING
+#include "UnitTest.h"
+
 byte MOTOR_PINS[] = {11,10,9,6};
 byte DIRECTION_PINS[] = {4,2};
 
@@ -31,6 +34,8 @@ void setup()
 
   // initialize serial:
   Serial.begin(38400);
+  UNIT_TESTS;
+  
   Serial1.begin(38400);
 
   digitalWrite(13, HIGH);
