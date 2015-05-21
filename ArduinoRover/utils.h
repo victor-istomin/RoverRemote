@@ -14,6 +14,11 @@ void setAllPins(const byte (&pins)[Size], int newState)
     }
 }
 
-
+// this is a helper tag structure for overloading functions "by enum value"
+template <typename Enum, Enum Value>
+struct Tag
+{
+    static const Enum value = Value;
+};
 
 #endif // _UTILS_H_
