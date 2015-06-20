@@ -30,7 +30,7 @@ void dumpArray(Stream& s, Int (&array)[N])
     {
       if (i > 0)
         s.print(',');
-      s.print(array[i], HEX);
+      s.print(((long)array[i])&0xFF, HEX);
     }
     s.print('}');
 }
